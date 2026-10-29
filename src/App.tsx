@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { initWizardChess } from './wizardChessEngine.js';
+import { PWAInstallButton } from './components/PWAInstallButton';
+import { OfflineIndicator } from './components/OfflineIndicator';
 
 export default function App() {
   const initializedRef = useRef(false);
@@ -43,6 +45,8 @@ export default function App() {
 
   return (
     <>
+      <OfflineIndicator />
+
       <div id="loading-overlay">
         <div className="loader-title">Wizard Chess</div>
         <div className="loader-bar-wrap">
@@ -73,6 +77,7 @@ export default function App() {
             <span id="turn-text">White to Move</span>
             <span className="mode-badge" id="mode-badge">Playing as White</span>
           </div>
+          <PWAInstallButton />
         </div>
 
         <button
