@@ -40,15 +40,18 @@ export function initWizardChess() {
     const isAutomatedTest = Boolean(
       navigator.webdriver || new URLSearchParams(window.location.search).get('autotest') === '1'
     );
+    const isMobileDevice = /Android|iPhone|iPad|iPod|Mobile|Opera Mini|IEMobile/i.test(navigator.userAgent) || window.innerWidth < 768;
+    let performanceMode = isMobileDevice;
+
     const renderer = new THREE.WebGLRenderer({
-      antialias: true,
+      antialias: !isMobileDevice,
       powerPreference: 'high-performance',
       preserveDrawingBuffer: isAutomatedTest
     });
     renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setPixelRatio(performanceMode ? 1.0 : Math.min(window.devicePixelRatio, 1.5));
     renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.shadowMap.type = performanceMode ? THREE.BasicShadowMap : THREE.PCFSoftShadowMap;
     renderer.shadowMap.autoUpdate = false;
     renderer.shadowMap.needsUpdate = true;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -215,8 +218,9 @@ export function initWizardChess() {
     const keyLight = new THREE.DirectionalLight(0xfff0d6, 2.55);
     keyLight.position.set(3.8, 8.5, 4.2);
     keyLight.castShadow = true;
-    keyLight.shadow.mapSize.width = 2048;
-    keyLight.shadow.mapSize.height = 2048;
+    const shadowRes = performanceMode ? 1024 : 2048;
+    keyLight.shadow.mapSize.width = shadowRes;
+    keyLight.shadow.mapSize.height = shadowRes;
     keyLight.shadow.camera.near = 1.0;
     keyLight.shadow.camera.far = 22.0;
     const d = 3.2;
@@ -4406,10 +4410,40 @@ export function initWizardChess() {
       checkmateState.bannerVisible = false;
     });
 
+    function applyPerformanceMode(fast) {
+      performanceMode = Boolean(fast);
+      const targetPixelRatio = performanceMode ? 1.0 : Math.min(window.devicePixelRatio, 1.5);
+      renderer.setPixelRatio(targetPixelRatio);
+      renderer.shadowMap.type = performanceMode ? THREE.BasicShadowMap : THREE.PCFSoftShadowMap;
+      const mapRes = performanceMode ? 1024 : 2048;
+      keyLight.shadow.mapSize.width = mapRes;
+      keyLight.shadow.mapSize.height = mapRes;
+      if (keyLight.shadow.map) {
+        keyLight.shadow.map.dispose();
+        keyLight.shadow.map = null;
+      }
+      renderer.shadowMap.needsUpdate = true;
+
+      const btnPerf = document.getElementById('btn-perf-toggle');
+      if (btnPerf) {
+        btnPerf.textContent = performanceMode ? '⚡ Fast Mode' : '🎨 Quality Mode';
+        if (performanceMode) {
+          btnPerf.classList.add('active');
+        } else {
+          btnPerf.classList.remove('active');
+        }
+      }
+    }
+
+    document.getElementById('btn-perf-toggle')?.addEventListener('click', () => {
+      applyPerformanceMode(!performanceMode);
+    });
+
     // =========================================================================
     // Programmatic API for Automated Verification & Camera Inspection
     // =========================================================================
     window.wizardChess = {
+      applyPerformanceMode,
       setCameraPreset,
       setCameraPose,
       setCameraLook: setCameraPose,
@@ -4920,11 +4954,22 @@ export function initWizardChess() {
       manualStepMode = Boolean(v);
     };
 
-    function animate() {
+    let lastRenderTime = 0;
+
+    function animate(now) {
       if (!navigator.webdriver && !manualStepMode) {
         requestAnimationFrame(animate);
       }
       if (manualStepMode) return;
+
+      const isIdle = !isAnimatingMove && activeMoveTweens.length === 0 && shatterDebris.length === 0 && !activeCamTransition && heldCameraKeys.size === 0 && !shiftDragState.active;
+      if (performanceMode && isIdle) {
+        if (now - lastRenderTime < 33) {
+          return;
+        }
+      }
+      lastRenderTime = now || performance.now();
+
       const dt = Math.min(clock.getDelta(), 0.1);
       stepScene(dt || 0.016, true);
     }
@@ -4939,6 +4984,7 @@ export function initWizardChess() {
     // Startup sequence (Standalone Single-Player AI Studio Applet)
     (async () => {
       await loadAllAssets();
+      applyPerformanceMode(performanceMode);
       const params = new URLSearchParams(window.location.search);
       const urlSide = params.get('side');
       if (urlSide === 'b' || urlSide === 'black') {
@@ -4952,3 +4998,4 @@ export function initWizardChess() {
       }
     })();
 }
+

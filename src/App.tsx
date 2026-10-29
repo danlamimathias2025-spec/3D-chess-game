@@ -194,8 +194,15 @@ export default function App() {
           </button>
 
           <div className="hud-divider" aria-hidden="true"></div>
-          <div className="mobile-sheet-section-label">Display &amp; Gestures</div>
+          <div className="mobile-sheet-section-label">Display &amp; Performance</div>
 
+          <button
+            className="hud-btn"
+            id="btn-perf-toggle"
+            title="Toggle between Fast Performance Mode (optimized for phones) and Ultra Quality Mode"
+          >
+            ⚡ Fast Mode
+          </button>
           <button
             className="hud-btn"
             id="btn-hide-ui"
